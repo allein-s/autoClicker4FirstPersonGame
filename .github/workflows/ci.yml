@@ -2,23 +2,35 @@ name: CI
 
 on:
   push:
-    branches: [main]
-    tags: ["v*"]
+    branches: [main, development]
   pull_request:
-    branches: [main]
+    branches: [main, development]
 
 permissions:
   contents: write
 
 jobs:
+  # Pull requests into `main` are only allowed from `development`.
+  guard-source-branch:
+    name: Enforce merge source
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require PR source to be 'development'
+        run: |
+          if [ "${{ github.head_ref }}" != "development" ]; then
+            echo "::error::Pull requests into 'main' are only allowed from the 'development' branch (got '${{ github.head_ref }}')."
+            exit 1
+          fi
+
   test:
     name: Lint & Test
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -34,36 +46,56 @@ jobs:
       - name: Run tests
         run: pytest
 
-  build:
-    name: Build exe
+  release:
+    name: Build & Release
     needs: test
+    # Only when code lands on `main` (i.e. a merge into main).
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
 
+      - name: Read version from pyproject.toml
+        id: ver
+        shell: bash
+        run: |
+          version=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether this version was already released
+        id: exists
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v${{ steps.ver.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install build dependencies
+        if: steps.exists.outputs.exists == 'false'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Build with PyInstaller
+        if: steps.exists.outputs.exists == 'false'
         run: pyinstaller --onefile --windowed --uac-admin --name autoClicker --clean main.py
 
-      - name: Upload exe artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: autoClicker-exe
-          path: dist/autoClicker.exe
-          if-no-files-found: error
-
-      - name: Attach exe to release
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Publish release
+        if: steps.exists.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: Auto Clicker v${{ steps.ver.outputs.version }}
           files: dist/autoClicker.exe
+          generate_release_notes: true
+          fail_on_unmatched_files: true

@@ -60,13 +60,17 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-CI（GitHub Actions, `.github/workflows/ci.yml`）では、`windows-latest` 上で
+CI（GitHub Actions, `.github/workflows/ci.yml`）は次のように動作します。
 
-1. 全モジュールのバイトコンパイル
-2. `pytest` によるテスト
-3. PyInstaller での exe ビルド（アーティファクトとしてアップロード。`v*` タグ時は Release へ添付）
+- **push / PR（`main`・`development`）**: 全モジュールのバイトコンパイルと `pytest`
+- **`main` への PR**: 流入元が `development` かをチェック（それ以外はブロック）
+- **`main` への push（＝マージ）時のみ**: PyInstaller で exe をビルドし、`pyproject.toml` の `version` を用いて `vX.Y.Z` の GitHub Release を自動作成・配布（同一バージョンが既に存在する場合はスキップ）
 
-を実行します。
+### ブランチ運用
+
+- `development`: 通常の開発ブランチ（レビュー承認でマージ）
+- `main`: リリース用。`development` からのみ、かつ管理者のみマージ可能
+- リリースは **`main` にマージされたときのみ** 行われます。新バージョンを出す際は `pyproject.toml` の `version` を上げてください。
 
 ## 設定ファイル
 
