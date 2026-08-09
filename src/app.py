@@ -129,29 +129,16 @@ class AutoClickerApp:
     def _toggle_click(self) -> None:
         if self.autoclick.running:
             self.autoclick.stop()
-            self._restore_window()
         elif self.autoclick.start() and self._settings.minimize_on_run:
             self.root.iconify()
 
     def _toggle_hold(self) -> None:
         if self.keyhold.active:
             self.keyhold.stop()
-            self._restore_window()
         else:
             self.keyhold.start()
             if self.keyhold.active and self._settings.minimize_on_hold_run:
                 self.root.iconify()
-
-    def _restore_window(self) -> None:
-        try:
-            self.root.deiconify()
-            self.root.lift()
-            self.root.attributes("-topmost", True)
-            if not self._settings.main_window_topmost:
-                self.root.after(100, lambda: self.root.attributes("-topmost", False))
-            self.root.focus_force()
-        except tk.TclError:
-            pass
 
     def _check_hotkey(self) -> None:
         failed = (self._hotkey is not None and not self._hotkey.registered) or (
