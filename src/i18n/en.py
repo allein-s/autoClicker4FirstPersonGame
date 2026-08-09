@@ -27,7 +27,7 @@ STRINGS: dict[str, str] = {
     # --- Key-hold tab ---
     "keyhold.keys_frame": "Keys to hold down",
     "keyhold.hint": "{hotkey}: Start / Stop holding  |  Works together with auto-click",
-    "keyhold.note": "Key selection applies instantly. Toggle key-repeat re-sending in Settings.",
+    "keyhold.note": "Key selection applies instantly. Pressing a held key releases only that key. Toggle key-repeat re-sending in Settings.",
     "keyhold.toggle": "Start / Stop",
     "keyhold.status_active": "Holding: {keys}",
     "keyhold.status_idle": "Idle",

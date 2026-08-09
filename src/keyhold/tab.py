@@ -27,7 +27,7 @@ class KeyHoldTab:
         self._root = root
         self._settings = settings
         self._on_state_changed = on_state_changed
-        self._controller = KeyHoldController()
+        self._controller = KeyHoldController(on_changed=self._on_hold_changed)
         self._key_vars: dict[str, tk.BooleanVar] = {}
         self._build(parent)
 
@@ -78,6 +78,14 @@ class KeyHoldTab:
 
     def shutdown(self) -> None:
         self._controller.stop()
+
+    def _on_hold_changed(self) -> None:
+        # KeyBreakMonitor callbacks may arrive off the Tk thread.
+        self._root.after(0, self._apply_hold_changed)
+
+    def _apply_hold_changed(self) -> None:
+        self._refresh_status()
+        self._on_state_changed()
 
     # ------------------------------------------------------------------
     # UI construction
