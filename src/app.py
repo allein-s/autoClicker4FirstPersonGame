@@ -184,7 +184,10 @@ class AutoClickerApp:
     def _apply_settings(self, new_settings: AppSettings) -> None:
         old = self._settings
         new_settings.last_schedule_path = old.last_schedule_path
-        new_settings.hold_keys = old.hold_keys  # owned by the key-hold tab
+        # Owned by the key-hold tab (not the settings dialog).
+        new_settings.hold_keys = old.hold_keys
+        new_settings.hold_repeat = old.hold_repeat
+        new_settings.hold_repeat_interval_ms = old.hold_repeat_interval_ms
 
         hotkey_changed = (
             new_settings.hotkey_vk != old.hotkey_vk or new_settings.hotkey_mods != old.hotkey_mods
@@ -192,10 +195,6 @@ class AutoClickerApp:
         hold_hotkey_changed = (
             new_settings.hold_hotkey_vk != old.hold_hotkey_vk
             or new_settings.hold_hotkey_mods != old.hold_hotkey_mods
-        )
-        repeat_changed = (
-            new_settings.hold_repeat != old.hold_repeat
-            or new_settings.hold_repeat_interval_ms != old.hold_repeat_interval_ms
         )
         dir_changed = new_settings.schedule_dir != old.schedule_dir
         startup_changed = new_settings.start_with_windows != old.start_with_windows
@@ -215,9 +214,6 @@ class AutoClickerApp:
         if hold_hotkey_changed and self._hold_hotkey is not None:
             self._hold_hotkey.set_hotkey(new_settings.hold_hotkey_vk, new_settings.hold_hotkey_mods)
             self.root.after(300, self._check_hotkey)
-
-        if repeat_changed:
-            self.keyhold.restart_if_active()
 
         if dir_changed:
             self.autoclick.reload_schedule_dir()

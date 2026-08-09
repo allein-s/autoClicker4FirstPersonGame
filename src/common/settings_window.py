@@ -104,21 +104,6 @@ class SettingsWindow:
             variable=self.hold_minimize_var,
         ).pack(anchor=tk.W, pady=(8, 0))
 
-        self.hold_repeat_var = tk.BooleanVar(value=settings.hold_repeat)
-        ttk.Checkbutton(
-            hold_frame,
-            text=t("settings.hold.repeat"),
-            variable=self.hold_repeat_var,
-        ).pack(anchor=tk.W, pady=(8, 0))
-
-        repeat_row = ttk.Frame(hold_frame)
-        repeat_row.pack(fill=tk.X, pady=(4, 0))
-        ttk.Label(repeat_row, text=t("settings.hold.repeat_interval")).pack(side=tk.LEFT)
-        self.hold_interval_var = tk.StringVar(value=str(settings.hold_repeat_interval_ms))
-        ttk.Spinbox(
-            repeat_row, from_=1, to=1000, textvariable=self.hold_interval_var, width=6
-        ).pack(side=tk.LEFT, padx=(8, 0))
-
         # --- Schedule folder ---
         dir_frame = ttk.LabelFrame(self.win, text=t("settings.folder.frame"), padding=10)
         dir_frame.pack(fill=tk.X, **pad)
@@ -287,16 +272,6 @@ class SettingsWindow:
             messagebox.showwarning(t("settings.error.input_title"), t("settings.error.hold_ms"))
             return
 
-        try:
-            repeat_interval = int(self.hold_interval_var.get())
-            if repeat_interval < 1:
-                raise ValueError
-        except ValueError:
-            messagebox.showwarning(
-                t("settings.error.input_title"), t("settings.error.repeat_interval")
-            )
-            return
-
         schedule_dir = self.schedule_dir_var.get().strip()
         if not schedule_dir:
             messagebox.showwarning(
@@ -337,8 +312,8 @@ class SettingsWindow:
             hold_hotkey_vk=self._pending_hold_vk,
             hold_hotkey_mods=self._pending_hold_mods,
             hold_keys=list(self._settings.hold_keys),  # managed in the key-hold tab
-            hold_repeat=self.hold_repeat_var.get(),
-            hold_repeat_interval_ms=repeat_interval,
+            hold_repeat=self._settings.hold_repeat,  # managed in the key-hold tab
+            hold_repeat_interval_ms=self._settings.hold_repeat_interval_ms,
             minimize_on_hold_run=self.hold_minimize_var.get(),
         )
         self._on_save(new_settings)
