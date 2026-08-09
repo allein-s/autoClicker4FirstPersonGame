@@ -16,11 +16,19 @@ SETTINGS_FILENAME = "settings.json"
 
 
 def base_dir() -> Path:
-    """Directory containing the running exe (or the project root when run from source)."""
+    """Directory containing the running exe (or the project root when run from source).
+
+    Set the ``AUTOCLICKER_HOME`` environment variable to redirect where
+    ``settings.json`` / the schedule directory are read and written. This keeps
+    tests and dev runs from scattering runtime files into the repository root.
+    """
+    override = os.environ.get("AUTOCLICKER_HOME")
+    if override:
+        return Path(override).expanduser().resolve()
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
-    # .../autoclicker/paths.py -> project root is two levels up.
-    return Path(__file__).resolve().parent.parent
+    # .../src/common/paths.py -> project root is three levels up.
+    return Path(__file__).resolve().parent.parent.parent
 
 
 def executable_path() -> Path:

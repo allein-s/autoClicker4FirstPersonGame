@@ -1,10 +1,15 @@
 [project]
 name = "autoclicker"
-version = "1.0.0"
-description = "Windows auto-clicker that clicks at the cursor position on a looping schedule, toggled by a global hotkey."
+version = "1.1.0"
+description = "Cross-platform (Windows/macOS) auto-clicker and key-holder: clicks at the cursor position on a looping schedule and holds keys, each toggled by its own global hotkey."
 requires-python = ">=3.12"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
 addopts = "-q"
+
+# Code formatter (the "Prettier" for Python). Run `black .` to format.
+[tool.black]
+line-length = 100
+target-version = ["py312"]

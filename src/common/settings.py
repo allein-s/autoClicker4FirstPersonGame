@@ -1,19 +1,19 @@
 """Application settings persisted as JSON next to the exe.
 
 Paths (schedule_dir, last_schedule_path) are stored as strings relative to
-the executable's directory whenever possible -- see `autoclicker.paths` --
+the executable's directory whenever possible -- see `src.common.paths` --
 so settings.json stays portable across machines and folder locations.
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from . import paths
-from .i18n import DEFAULT_LANGUAGE
-from .vk_map import DEFAULT_HOTKEY_VK
+from ..i18n import DEFAULT_LANGUAGE
+from .vk_map import DEFAULT_HOLD_HOTKEY_VK, DEFAULT_HOTKEY_VK
 
 SETTINGS_VERSION = 1
 
@@ -31,6 +31,13 @@ class AppSettings:
     main_window_topmost: bool = False
     start_with_windows: bool = False
     language: str = DEFAULT_LANGUAGE
+    # --- Key-hold feature ---
+    hold_hotkey_vk: int = DEFAULT_HOLD_HOTKEY_VK
+    hold_hotkey_mods: int = 0
+    hold_keys: list[str] = field(default_factory=lambda: ["w"])
+    hold_repeat: bool = False
+    hold_repeat_interval_ms: int = 30
+    minimize_on_hold_run: bool = False
 
     def schedule_dir_path(self) -> Path:
         return paths.resolve_path(self.schedule_dir)
@@ -63,6 +70,6 @@ def load_settings() -> AppSettings:
 def save_settings(settings: AppSettings) -> None:
     data = asdict(settings)
     data["version"] = SETTINGS_VERSION
-    paths.settings_path().write_text(
-        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    path = paths.settings_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")

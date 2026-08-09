@@ -1,1 +1,6 @@
 pyinstaller>=6.0
+
+# macOS-only runtime dependencies (ignored on other platforms via markers).
+# Input injection + global hotkey use pynput; NSScreen work-area uses AppKit.
+pynput>=1.7; sys_platform == "darwin"
+pyobjc-framework-Cocoa>=10.0; sys_platform == "darwin"

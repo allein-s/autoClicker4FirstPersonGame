@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from autoclicker import i18n
-from autoclicker.i18n import en, ja
+from src import i18n
+from src.i18n import en, ja
 
 
 def test_all_languages_share_the_same_keys():

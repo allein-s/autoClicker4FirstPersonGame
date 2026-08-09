@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from autoclicker import paths
+from src.common import paths
 
 
 def test_resolve_relative_against_base_dir():
