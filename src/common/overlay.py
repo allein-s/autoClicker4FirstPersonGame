@@ -1,33 +1,12 @@
 """Small always-on-top indicator shown at the bottom-right of the work area
-(above the Windows taskbar) while the schedule is running."""
+(above the Windows taskbar) while a feature is running. It lists every active
+feature (auto-click / key-hold) with its hotkey so the state is unambiguous."""
 
 from __future__ import annotations
 
-import ctypes
 import tkinter as tk
-from ctypes import wintypes
 
-from .i18n import t
-
-user32 = ctypes.windll.user32
-
-SPI_GETWORKAREA = 0x0030
-
-
-class _RECT(ctypes.Structure):
-    _fields_ = [
-        ("left", wintypes.LONG),
-        ("top", wintypes.LONG),
-        ("right", wintypes.LONG),
-        ("bottom", wintypes.LONG),
-    ]
-
-
-def _work_area() -> tuple[int, int, int, int]:
-    rect = _RECT()
-    if user32.SystemParametersInfoW(SPI_GETWORKAREA, 0, ctypes.byref(rect), 0):
-        return rect.left, rect.top, rect.right, rect.bottom
-    return 0, 0, 800, 600
+from ..platforms import work_area
 
 
 class RunningOverlay:
@@ -66,18 +45,26 @@ class RunningOverlay:
         if self._win is None:
             return
         self._win.update_idletasks()
-        _, _, right, bottom = _work_area()
+        _, _, right, bottom = work_area()
         width = self._win.winfo_width()
         height = self._win.winfo_height()
         x = right - width - self.MARGIN
         y = bottom - height - self.MARGIN
         self._win.geometry(f"+{x}+{y}")
 
-    def show(self, hotkey_label: str) -> None:
+    def set_items(self, items: list[tuple[str, str]]) -> None:
+        """Show one line per active feature, or hide when nothing is active.
+
+        Each item is a ``(name, hotkey_label)`` pair.
+        """
+        if not items:
+            self.hide()
+            return
         self._build()
         assert self._win is not None
         assert self._label is not None
-        self._label.config(text=t("overlay.running_text", hotkey=hotkey_label))
+        text = "\n".join(f"\u25cf {name}  ({hotkey})" for name, hotkey in items)
+        self._label.config(text=text)
         self._win.deiconify()
         self._position()
         self._win.lift()

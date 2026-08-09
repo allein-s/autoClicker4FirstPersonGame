@@ -4,6 +4,7 @@ from __future__ import annotations
 
 VK_F1 = 0x70
 DEFAULT_HOTKEY_VK = VK_F1 + 7  # F8
+DEFAULT_HOLD_HOTKEY_VK = VK_F1 + 8  # F9
 
 _NAMED_VK: dict[str, int] = {
     "Escape": 0x1B,

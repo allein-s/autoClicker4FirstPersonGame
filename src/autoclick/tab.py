@@ -1,4 +1,8 @@
-"""Windows auto-clicker: schedule clicks and intervals at cursor position; hotkey toggles run."""
+"""Auto-click tab: build the schedule UI and run the clicking loop.
+
+Window minimize/restore, the running overlay and the global hotkey are owned
+by the top-level app; this tab only reports state changes via a callback.
+"""
 
 from __future__ import annotations
 
@@ -8,64 +12,81 @@ import time
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
+from typing import Callable
 
-from . import i18n, paths
-from .hotkey import HotkeyService
-from .i18n import t
-from .overlay import RunningOverlay
+from ..common import paths
+from ..common.settings import AppSettings, save_settings
+from ..platforms import game_left_click
+from ..common.widgets.autocomplete_combobox import AutocompleteCombobox
+from ..i18n import t
 from .scheduling import DEFAULT_SUFFIX, ScheduleTask, load_tasks, save_tasks
-from .settings import AppSettings, load_settings, save_settings
-from .settings_window import SettingsWindow
-from .vk_map import hotkey_label
-from .widgets.autocomplete_combobox import AutocompleteCombobox
-from .input_backend import game_left_click
-
-try:
-    from . import startup_registry
-except ImportError:  # pragma: no cover - non-Windows fallback
-    startup_registry = None
 
 
-class AutoClickerApp:
-    def __init__(self) -> None:
-        self._settings: AppSettings = load_settings()
-        i18n.set_language(self._settings.language)
-        self._ensure_schedule_dir()
+class AutoClickTab:
+    def __init__(
+        self,
+        root: tk.Tk,
+        parent: ttk.Frame,
+        settings: AppSettings,
+        on_state_changed: Callable[[], None],
+    ) -> None:
+        self._root = root
+        self._settings = settings
+        self._on_state_changed = on_state_changed
 
         self._tasks: list[ScheduleTask] = []
         self._running = False
         self._stop_event = threading.Event()
         self._worker: threading.Thread | None = None
-        self._hotkey: HotkeyService | None = None
         self._schedule_menu: tk.Menu | None = None
 
-        self.root = tk.Tk()
-        self.root.title(t("app.title"))
-        self.root.minsize(620, 420)
-        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
-        if self._settings.main_window_topmost:
-            self.root.attributes("-topmost", True)
-
-        self._overlay = RunningOverlay(self.root)
-
-        self._build_ui()
-        self._start_hotkey_listener()
+        self._ensure_schedule_dir()
+        self._build(parent)
         self._refresh_schedule_files()
-        self._refresh_status()
-        self.root.after(500, self._check_hotkey)
-        self._maybe_auto_load_last_schedule()
 
     # ------------------------------------------------------------------
-    # Paths / settings helpers
+    # Public API used by the app
     # ------------------------------------------------------------------
-    def _ensure_schedule_dir(self) -> None:
-        try:
-            self._settings.schedule_dir_path().mkdir(parents=True, exist_ok=True)
-        except OSError:
-            self._settings.schedule_dir = paths.DEFAULT_SCHEDULE_DIRNAME
-            self._settings.schedule_dir_path().mkdir(parents=True, exist_ok=True)
+    @property
+    def running(self) -> bool:
+        return self._running
 
-    def _maybe_auto_load_last_schedule(self) -> None:
+    @property
+    def task_count(self) -> int:
+        return len(self._tasks)
+
+    def set_settings(self, settings: AppSettings) -> None:
+        self._settings = settings
+
+    def reload_schedule_dir(self) -> None:
+        self._ensure_schedule_dir()
+        self._refresh_schedule_files()
+
+    def start(self) -> bool:
+        if not self._tasks:
+            messagebox.showinfo(t("dialog.schedule.title"), t("dialog.schedule.empty"))
+            return False
+        if self._running:
+            return False
+        self._running = True
+        self._stop_event.clear()
+        self._worker = threading.Thread(target=self._run_loop, daemon=True)
+        self._worker.start()
+        self._on_state_changed()
+        return True
+
+    def stop(self) -> None:
+        if not self._running:
+            return
+        self._stop_event.set()
+        self._running = False
+        self._on_state_changed()
+
+    def shutdown(self) -> None:
+        self._stop_event.set()
+        self._running = False
+
+    def maybe_auto_load(self) -> None:
         if not self._settings.auto_load_last_schedule:
             return
         path = self._settings.last_schedule_file()
@@ -80,8 +101,8 @@ class AutoClickerApp:
     # ------------------------------------------------------------------
     # UI construction
     # ------------------------------------------------------------------
-    def _build_ui(self) -> None:
-        main = ttk.Frame(self.root, padding=12)
+    def _build(self, parent: ttk.Frame) -> None:
+        main = ttk.Frame(parent, padding=12)
         main.pack(fill=tk.BOTH, expand=True)
 
         left = ttk.LabelFrame(main, text=t("panel.operations"), padding=10)
@@ -129,9 +150,6 @@ class AutoClickerApp:
             left, text=t("button.load_selected"), width=18, command=self._load_from_combo
         ).pack(pady=(0, 8))
 
-        ttk.Separator(left, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=8)
-        ttk.Button(left, text=t("button.settings"), width=18, command=self._open_settings).pack()
-
         right = ttk.LabelFrame(main, text=t("panel.schedule"), padding=10)
         right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
@@ -156,7 +174,7 @@ class AutoClickerApp:
         self.schedule_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scroll.config(command=self.schedule_list.yview)
 
-        self._schedule_menu = tk.Menu(self.root, tearoff=0)
+        self._schedule_menu = tk.Menu(self._root, tearoff=0)
         self._schedule_menu.add_command(label=t("menu.add_click"), command=self._add_click)
         self._schedule_menu.add_command(label=t("menu.add_interval"), command=self._add_interval)
         self._schedule_menu.add_separator()
@@ -166,30 +184,15 @@ class AutoClickerApp:
 
         self.schedule_list.bind("<Button-3>", self._on_schedule_right_click)
 
-        self.status_var = tk.StringVar()
-        status = ttk.Label(
-            self.root,
-            textvariable=self.status_var,
-            padding=(12, 0, 12, 10),
-            anchor=tk.W,
-        )
-        status.pack(fill=tk.X)
-
-        self.hint_var = tk.StringVar()
-        hint = ttk.Label(
-            self.root,
-            textvariable=self.hint_var,
-            padding=(12, 0, 12, 8),
-            foreground="#555",
-        )
-        hint.pack(fill=tk.X)
-        self._refresh_hint()
-
-    def _current_hotkey_label(self) -> str:
-        return hotkey_label(self._settings.hotkey_vk, self._settings.hotkey_mods)
-
-    def _refresh_hint(self) -> None:
-        self.hint_var.set(t("hint.format", hotkey=self._current_hotkey_label()))
+    # ------------------------------------------------------------------
+    # Paths / schedule helpers
+    # ------------------------------------------------------------------
+    def _ensure_schedule_dir(self) -> None:
+        try:
+            self._settings.schedule_dir_path().mkdir(parents=True, exist_ok=True)
+        except OSError:
+            self._settings.schedule_dir = paths.DEFAULT_SCHEDULE_DIRNAME
+            self._settings.schedule_dir_path().mkdir(parents=True, exist_ok=True)
 
     # ------------------------------------------------------------------
     # Schedule list editing
@@ -344,51 +347,11 @@ class AutoClickerApp:
         if select_index is not None and 0 <= select_index < len(self._tasks):
             self.schedule_list.selection_set(select_index)
             self.schedule_list.see(select_index)
-        self._refresh_status()
-
-    def _refresh_status(self) -> None:
-        state = t("status.running") if self._running else t("status.stopped")
-        self.status_var.set(t("status.format", state=state, count=len(self._tasks)))
+        self._on_state_changed()
 
     # ------------------------------------------------------------------
     # Run loop
     # ------------------------------------------------------------------
-    def _toggle_running(self, from_hotkey: bool = False) -> None:
-        self.root.after(0, lambda: self._toggle_running_ui(from_hotkey))
-
-    def _toggle_running_ui(self, from_hotkey: bool = False) -> None:
-        if self._running:
-            self._stop_loop(from_hotkey=from_hotkey)
-        else:
-            if self._start_loop():
-                if from_hotkey and self._settings.minimize_on_run:
-                    self.root.iconify()
-
-    def _start_loop(self) -> bool:
-        if not self._tasks:
-            messagebox.showinfo(t("dialog.schedule.title"), t("dialog.schedule.empty"))
-            return False
-        if self._running:
-            return False
-        self._running = True
-        self._stop_event.clear()
-        self._worker = threading.Thread(target=self._run_loop, daemon=True)
-        self._worker.start()
-        self._refresh_status()
-        if self._settings.show_overlay:
-            self._overlay.show(self._current_hotkey_label())
-        return True
-
-    def _stop_loop(self, from_hotkey: bool = False) -> None:
-        if not self._running:
-            return
-        self._stop_event.set()
-        self._running = False
-        self._refresh_status()
-        self._overlay.hide()
-        if from_hotkey:
-            self._restore_window()
-
     def _perform_click(self) -> None:
         game_left_click(hold_ms=self._settings.click_hold_ms / 1000.0)
 
@@ -406,104 +369,8 @@ class AutoClickerApp:
                         if self._stop_event.is_set():
                             break
                         time.sleep(min(0.05, deadline - time.perf_counter()))
-        self.root.after(0, self._set_running_false)
+        self._root.after(0, self._set_running_false)
 
     def _set_running_false(self) -> None:
         self._running = False
-        self._refresh_status()
-        self._overlay.hide()
-
-    def _restore_window(self) -> None:
-        try:
-            self.root.deiconify()
-            self.root.lift()
-            self.root.attributes("-topmost", True)
-            if not self._settings.main_window_topmost:
-                self.root.after(100, lambda: self.root.attributes("-topmost", False))
-            self.root.focus_force()
-        except tk.TclError:
-            pass
-
-    # ------------------------------------------------------------------
-    # Hotkey
-    # ------------------------------------------------------------------
-    def _on_hotkey_triggered(self) -> None:
-        self._toggle_running(from_hotkey=True)
-
-    def _check_hotkey(self) -> None:
-        if self._hotkey is not None and not self._hotkey.registered:
-            messagebox.showwarning(
-                t("dialog.hotkey.title"), t("dialog.hotkey.register_failed")
-            )
-
-    def _start_hotkey_listener(self) -> None:
-        self._hotkey = HotkeyService(
-            self._settings.hotkey_vk, self._settings.hotkey_mods, self._on_hotkey_triggered
-        )
-        self._hotkey.start()
-
-    # ------------------------------------------------------------------
-    # Settings dialog
-    # ------------------------------------------------------------------
-    def _open_settings(self) -> None:
-        SettingsWindow(self.root, self._settings, self._apply_settings)
-
-    def _apply_settings(self, new_settings: AppSettings) -> None:
-        old = self._settings
-        new_settings.last_schedule_path = old.last_schedule_path
-
-        hotkey_changed = (
-            new_settings.hotkey_vk != old.hotkey_vk
-            or new_settings.hotkey_mods != old.hotkey_mods
-        )
-        dir_changed = new_settings.schedule_dir != old.schedule_dir
-        startup_changed = new_settings.start_with_windows != old.start_with_windows
-        topmost_changed = new_settings.main_window_topmost != old.main_window_topmost
-
-        self._settings = new_settings
-        save_settings(self._settings)
-        self._refresh_hint()
-
-        if hotkey_changed and self._hotkey is not None:
-            self._hotkey.set_hotkey(new_settings.hotkey_vk, new_settings.hotkey_mods)
-            self.root.after(300, self._check_hotkey)
-
-        if dir_changed:
-            self._ensure_schedule_dir()
-            self._refresh_schedule_files()
-
-        if topmost_changed:
-            try:
-                self.root.attributes("-topmost", new_settings.main_window_topmost)
-            except tk.TclError:
-                pass
-
-        if not new_settings.show_overlay:
-            self._overlay.hide()
-
-        if startup_changed and startup_registry is not None:
-            try:
-                startup_registry.set_registered(new_settings.start_with_windows)
-            except OSError as exc:
-                messagebox.showerror(
-                    t("settings.error.startup_title"),
-                    t("settings.error.startup", error=exc),
-                )
-
-    # ------------------------------------------------------------------
-    # Lifecycle
-    # ------------------------------------------------------------------
-    def _on_close(self) -> None:
-        self._stop_event.set()
-        self._running = False
-        if self._hotkey is not None:
-            self._hotkey.stop()
-        self._overlay.destroy()
-        self.root.destroy()
-
-    def run(self) -> None:
-        self.root.mainloop()
-
-
-def main() -> None:
-    AutoClickerApp().run()
+        self._on_state_changed()

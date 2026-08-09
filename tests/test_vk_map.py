@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from autoclicker import vk_map
+from src.common import vk_map
 
 
 def test_function_key_roundtrip():

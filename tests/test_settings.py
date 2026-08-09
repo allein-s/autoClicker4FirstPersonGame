@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from autoclicker import paths, settings
-from autoclicker.settings import AppSettings, load_settings, save_settings
-from autoclicker.vk_map import DEFAULT_HOTKEY_VK
+from src.common import paths, settings
+from src.common.settings import AppSettings, load_settings, save_settings
+from src.common.vk_map import DEFAULT_HOTKEY_VK
 
 
 def test_defaults_use_relative_schedule_dir():

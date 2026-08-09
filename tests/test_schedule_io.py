@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from autoclicker.scheduling import ScheduleTask, load_tasks, save_tasks
-from autoclicker.scheduling.io import tasks_from_dict, tasks_to_dict
+from src.autoclick.scheduling import ScheduleTask, load_tasks, save_tasks
+from src.autoclick.scheduling.io import tasks_from_dict, tasks_to_dict
 
 
 def _sample_tasks() -> list[ScheduleTask]:

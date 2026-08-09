@@ -41,7 +41,7 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Byte-compile all modules
-        run: python -m compileall main.py autoclicker
+        run: python -m compileall main.py src
 
       - name: Run tests
         run: pytest

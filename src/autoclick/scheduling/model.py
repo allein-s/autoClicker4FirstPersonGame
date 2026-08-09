@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from ..i18n import t
+from ...i18n import t
 
 TaskType = Literal["click", "interval"]
 

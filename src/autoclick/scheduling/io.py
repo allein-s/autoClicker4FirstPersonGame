@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ..i18n import t
+from ...i18n import t
 from .model import ScheduleTask
 
 FILE_VERSION = 1
