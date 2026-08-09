@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import winreg
 
-from .paths import executable_path
+from ...common.paths import executable_path
 
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 VALUE_NAME = "AutoClicker"

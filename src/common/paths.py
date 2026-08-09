@@ -19,8 +19,8 @@ def base_dir() -> Path:
     """Directory containing the running exe (or the project root when run from source)."""
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
-    # .../autoclicker/paths.py -> project root is two levels up.
-    return Path(__file__).resolve().parent.parent
+    # .../autoclicker/common/paths.py -> project root is three levels up.
+    return Path(__file__).resolve().parent.parent.parent
 
 
 def executable_path() -> Path:

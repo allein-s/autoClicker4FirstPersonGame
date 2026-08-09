@@ -7,8 +7,9 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import Callable
 
-from . import i18n, paths
-from .i18n import t
+from .. import i18n
+from . import paths
+from ..i18n import t
 from .settings import AppSettings
 from .vk_map import MOD_ALT, MOD_CONTROL, MOD_SHIFT, MOD_WIN, hotkey_label, vk_from_keysym
 
@@ -35,10 +36,13 @@ class SettingsWindow:
     ) -> None:
         self._parent = parent
         self._on_save = on_save
+        self._settings = settings
         self._pending_vk = settings.hotkey_vk
         self._pending_mods = settings.hotkey_mods
+        self._pending_hold_vk = settings.hold_hotkey_vk
+        self._pending_hold_mods = settings.hold_hotkey_mods
         self._mod_flags = 0
-        self._capturing = False
+        self._capture_target: str | None = None  # "click" | "hold" | None
 
         self.win = tk.Toplevel(parent)
         self.win.title(t("settings.title"))
@@ -62,7 +66,9 @@ class SettingsWindow:
         )
         self.hotkey_display.pack(side=tk.LEFT, padx=(6, 12))
         self._change_label = t("settings.hotkey.change")
-        self.capture_btn = ttk.Button(row, text=self._change_label, command=self._start_capture)
+        self.capture_btn = ttk.Button(
+            row, text=self._change_label, command=lambda: self._start_capture("click")
+        )
         self.capture_btn.pack(side=tk.LEFT)
 
         ttk.Label(
@@ -72,6 +78,46 @@ class SettingsWindow:
             wraplength=420,
             justify=tk.LEFT,
         ).pack(fill=tk.X, pady=(6, 0))
+
+        # --- Key-hold ---
+        hold_frame = ttk.LabelFrame(self.win, text=t("settings.hold.frame"), padding=10)
+        hold_frame.pack(fill=tk.X, **pad)
+
+        hold_hk_row = ttk.Frame(hold_frame)
+        hold_hk_row.pack(fill=tk.X)
+        ttk.Label(hold_hk_row, text=t("settings.hold.hotkey_label")).pack(side=tk.LEFT)
+        self.hold_hotkey_var = tk.StringVar(
+            value=hotkey_label(self._pending_hold_vk, self._pending_hold_mods)
+        )
+        ttk.Label(
+            hold_hk_row, textvariable=self.hold_hotkey_var, font=("Segoe UI", 10, "bold")
+        ).pack(side=tk.LEFT, padx=(6, 12))
+        self.hold_capture_btn = ttk.Button(
+            hold_hk_row, text=self._change_label, command=lambda: self._start_capture("hold")
+        )
+        self.hold_capture_btn.pack(side=tk.LEFT)
+
+        self.hold_minimize_var = tk.BooleanVar(value=settings.minimize_on_hold_run)
+        ttk.Checkbutton(
+            hold_frame,
+            text=t("settings.hold.minimize_on_run"),
+            variable=self.hold_minimize_var,
+        ).pack(anchor=tk.W, pady=(8, 0))
+
+        self.hold_repeat_var = tk.BooleanVar(value=settings.hold_repeat)
+        ttk.Checkbutton(
+            hold_frame,
+            text=t("settings.hold.repeat"),
+            variable=self.hold_repeat_var,
+        ).pack(anchor=tk.W, pady=(8, 0))
+
+        repeat_row = ttk.Frame(hold_frame)
+        repeat_row.pack(fill=tk.X, pady=(4, 0))
+        ttk.Label(repeat_row, text=t("settings.hold.repeat_interval")).pack(side=tk.LEFT)
+        self.hold_interval_var = tk.StringVar(value=str(settings.hold_repeat_interval_ms))
+        ttk.Spinbox(
+            repeat_row, from_=1, to=1000, textvariable=self.hold_interval_var, width=6
+        ).pack(side=tk.LEFT, padx=(8, 0))
 
         # --- Schedule folder ---
         dir_frame = ttk.LabelFrame(self.win, text=t("settings.folder.frame"), padding=10)
@@ -133,9 +179,9 @@ class SettingsWindow:
         hold_row.pack(fill=tk.X, pady=(6, 0))
         ttk.Label(hold_row, text=t("settings.behavior.click_hold_ms")).pack(side=tk.LEFT)
         self.hold_ms_var = tk.StringVar(value=str(settings.click_hold_ms))
-        ttk.Spinbox(
-            hold_row, from_=1, to=200, textvariable=self.hold_ms_var, width=6
-        ).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Spinbox(hold_row, from_=1, to=200, textvariable=self.hold_ms_var, width=6).pack(
+            side=tk.LEFT, padx=(8, 0)
+        )
 
         # --- Language ---
         lang_frame = ttk.LabelFrame(self.win, text=t("settings.language.frame"), padding=10)
@@ -163,9 +209,7 @@ class SettingsWindow:
         # --- Buttons ---
         btn_row = ttk.Frame(self.win, padding=(12, 6, 12, 12))
         btn_row.pack(fill=tk.X)
-        ttk.Button(btn_row, text=t("settings.buttons.save"), command=self._save).pack(
-            side=tk.RIGHT
-        )
+        ttk.Button(btn_row, text=t("settings.buttons.save"), command=self._save).pack(side=tk.RIGHT)
         ttk.Button(btn_row, text=t("settings.buttons.cancel"), command=self._cancel).pack(
             side=tk.RIGHT, padx=(0, 8)
         )
@@ -175,28 +219,35 @@ class SettingsWindow:
         self.win.focus_set()
 
     # --- Hotkey capture ---
-    def _start_capture(self) -> None:
-        self._capturing = True
+    def _capture_button(self, target: str) -> ttk.Button:
+        return self.hold_capture_btn if target == "hold" else self.capture_btn
+
+    def _start_capture(self, target: str) -> None:
+        # Reset any button that might have been left in the "capturing" state.
+        self.capture_btn.config(text=self._change_label)
+        self.hold_capture_btn.config(text=self._change_label)
+        self._capture_target = target
         self._mod_flags = 0
-        self.capture_btn.config(text=t("settings.hotkey.capture_prompt"))
+        self._capture_button(target).config(text=t("settings.hotkey.capture_prompt"))
         self.win.focus_set()
 
     def _on_capture_keyrelease(self, event: tk.Event) -> None:
-        if not self._capturing:
+        if self._capture_target is None:
             return
         if event.keysym in _MOD_KEYSYM_MAP:
             self._mod_flags &= ~_MOD_KEYSYM_MAP[event.keysym]
 
     def _on_capture_keypress(self, event: tk.Event) -> None:
-        if not self._capturing:
+        target = self._capture_target
+        if target is None:
             return
         keysym = event.keysym
         if keysym in _MOD_KEYSYM_MAP:
             self._mod_flags |= _MOD_KEYSYM_MAP[keysym]
             return
         if keysym == "Escape":
-            self._capturing = False
-            self.capture_btn.config(text=self._change_label)
+            self._capture_target = None
+            self._capture_button(target).config(text=self._change_label)
             return
         vk = vk_from_keysym(keysym)
         if vk is None:
@@ -204,11 +255,16 @@ class SettingsWindow:
                 t("dialog.hotkey.title"), t("dialog.hotkey.unsupported_key", key=keysym)
             )
             return
-        self._pending_vk = vk
-        self._pending_mods = self._mod_flags
-        self.hotkey_var.set(hotkey_label(vk, self._pending_mods))
-        self._capturing = False
-        self.capture_btn.config(text=self._change_label)
+        if target == "hold":
+            self._pending_hold_vk = vk
+            self._pending_hold_mods = self._mod_flags
+            self.hold_hotkey_var.set(hotkey_label(vk, self._mod_flags))
+        else:
+            self._pending_vk = vk
+            self._pending_mods = self._mod_flags
+            self.hotkey_var.set(hotkey_label(vk, self._mod_flags))
+        self._capture_target = None
+        self._capture_button(target).config(text=self._change_label)
 
     # --- Folder ---
     def _browse_dir(self) -> None:
@@ -231,6 +287,16 @@ class SettingsWindow:
             messagebox.showwarning(t("settings.error.input_title"), t("settings.error.hold_ms"))
             return
 
+        try:
+            repeat_interval = int(self.hold_interval_var.get())
+            if repeat_interval < 1:
+                raise ValueError
+        except ValueError:
+            messagebox.showwarning(
+                t("settings.error.input_title"), t("settings.error.repeat_interval")
+            )
+            return
+
         schedule_dir = self.schedule_dir_var.get().strip()
         if not schedule_dir:
             messagebox.showwarning(
@@ -248,7 +314,11 @@ class SettingsWindow:
 
         selected_name = self.language_var.get()
         language = next(
-            (code for code, name in zip(self._lang_codes, self._lang_names) if name == selected_name),
+            (
+                code
+                for code, name in zip(self._lang_codes, self._lang_names)
+                if name == selected_name
+            ),
             i18n.DEFAULT_LANGUAGE,
         )
 
@@ -264,6 +334,12 @@ class SettingsWindow:
             main_window_topmost=self.topmost_var.get(),
             start_with_windows=self.startup_var.get(),
             language=language,
+            hold_hotkey_vk=self._pending_hold_vk,
+            hold_hotkey_mods=self._pending_hold_mods,
+            hold_keys=list(self._settings.hold_keys),  # managed in the key-hold tab
+            hold_repeat=self.hold_repeat_var.get(),
+            hold_repeat_interval_ms=repeat_interval,
+            minimize_on_hold_run=self.hold_minimize_var.get(),
         )
         self._on_save(new_settings)
         self.win.destroy()

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from autoclicker import vk_map
+from src.common import vk_map
 
 
 def test_function_key_roundtrip():
@@ -26,7 +26,5 @@ def test_unsupported_keysym_returns_none():
 
 
 def test_hotkey_label_with_modifiers():
-    label = vk_map.hotkey_label(
-        vk_map.DEFAULT_HOTKEY_VK, vk_map.MOD_CONTROL | vk_map.MOD_SHIFT
-    )
+    label = vk_map.hotkey_label(vk_map.DEFAULT_HOTKEY_VK, vk_map.MOD_CONTROL | vk_map.MOD_SHIFT)
     assert label == "Ctrl+Shift+F8"
