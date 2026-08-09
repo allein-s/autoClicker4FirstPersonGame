@@ -44,12 +44,6 @@ class AutoClickerApp:
     # UI construction
     # ------------------------------------------------------------------
     def _build_ui(self) -> None:
-        topbar = ttk.Frame(self.root, padding=(12, 8, 12, 0))
-        topbar.pack(fill=tk.X)
-        ttk.Button(topbar, text=t("button.settings"), command=self._open_settings).pack(
-            side=tk.RIGHT
-        )
-
         notebook = ttk.Notebook(self.root)
         notebook.pack(fill=tk.BOTH, expand=True)
 
@@ -63,13 +57,16 @@ class AutoClickerApp:
         notebook.add(keyhold_frame, text=t("tab.keyhold"))
         self.keyhold = KeyHoldTab(self.root, keyhold_frame, self._settings, self._on_state_changed)
 
+        # フッター: 左にステータス、右に設定ボタン（タブの下に配置）。
+        status_row = ttk.Frame(self.root, padding=(12, 6, 12, 0))
+        status_row.pack(fill=tk.X)
+        ttk.Button(status_row, text=t("button.settings"), command=self._open_settings).pack(
+            side=tk.RIGHT
+        )
         self.status_var = tk.StringVar()
-        ttk.Label(
-            self.root,
-            textvariable=self.status_var,
-            padding=(12, 0, 12, 10),
-            anchor=tk.W,
-        ).pack(fill=tk.X)
+        ttk.Label(status_row, textvariable=self.status_var, anchor=tk.W).pack(
+            side=tk.LEFT, fill=tk.X, expand=True
+        )
 
         self.hint_var = tk.StringVar()
         ttk.Label(

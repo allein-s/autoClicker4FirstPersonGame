@@ -70,6 +70,6 @@ def load_settings() -> AppSettings:
 def save_settings(settings: AppSettings) -> None:
     data = asdict(settings)
     data["version"] = SETTINGS_VERSION
-    paths.settings_path().write_text(
-        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    path = paths.settings_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
