@@ -27,8 +27,20 @@
 ## 動作環境
 
 - Windows 10 / 11
+- macOS 12 以降（Apple Silicon / Intel）
 - Python 3.12 以降（ソースから実行/ビルドする場合）
-- サードパーティのランタイム依存はありません（すべて標準ライブラリ）。`pyinstaller` は exe ビルド専用です。
+- ランタイム依存: **Windows は標準ライブラリのみ**。**macOS のみ** `pynput` と `pyobjc-framework-Cocoa` を使用します（`requirements.txt` の環境マーカーで macOS のときだけ導入）。`pyinstaller` はビルド専用です。
+
+### macOS の権限（重要）
+
+macOS では入力の注入とグローバルホットキーの受信に OS の許可が必要です。初回起動後、
+**システム設定 → プライバシーとセキュリティ** で本アプリに以下を許可してください。
+
+- **アクセシビリティ（Accessibility）**
+- **入力監視（Input Monitoring）**
+
+許可しないとクリック・キー押しっぱなし・ホットキーが動作しません。配布バイナリは
+署名/公証していないため、初回は Gatekeeper の警告が出ます（右クリック→開く 等で許可）。
 
 ## 使い方（exe）
 
@@ -48,13 +60,27 @@ python -m venv .venv
 python main.py
 ```
 
-## exe のビルド
+## ビルド
+
+### Windows（exe）
 
 ```powershell
 # 依存の導入と PyInstaller によるビルドをまとめて実行
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 # 生成物: dist\autoClicker.exe
 ```
+
+### macOS（.app）
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+pyinstaller --windowed --name autoClicker --collect-submodules pynput --clean main.py
+# 生成物: dist/autoClicker.app
+```
+
+CI では `main` へのマージ時に **Windows(exe) と macOS(.app zip)** の両方を同一リリースに
+自動添付します（`autoClicker.exe` と `autoClicker-macos.zip`）。
 
 または直接:
 
@@ -123,19 +149,25 @@ src/
       hotkey.py                  #     グローバルホットキー (RegisterHotKey)
       startup.py                 #     Windows スタートアップ登録 (winreg)
       window.py                  #     作業領域の取得（オーバーレイ配置用）
+    macos/                       #   macOS 実装（pynput / AppKit）
+      inputs.py                  #     クリック / キー押下（token→pynput key）
+      hotkey.py                  #     グローバルホットキー (pynput GlobalHotKeys)
+      startup.py                 #     ログイン項目（LaunchAgent plist）
+      window.py                  #     作業領域の取得（NSScreen.visibleFrame）
   i18n/                          # 文言辞書 (ja / en) と切替
 tests/                           # pytest テスト
 ```
 
-### プラットフォーム対応（macOS 等の追加）
+### プラットフォーム対応
 
-OS 依存のロジックは `src/platforms/<os>/` に隔離されています。共有コードは中立 API
+OS 依存のロジックは `src/platforms/<os>/` に隔離され、共有コードは中立 API
 （`src/platforms/__init__.py` が re-export する `game_left_click` / `key_down` /
 `key_up` / `HotkeyService` / `is_registered` / `set_registered` / `work_area`）のみに
-依存します。新しい OS に対応する場合は、`src/platforms/base.py` の契約に沿って
-`src/platforms/macos/` などを追加し、`src/platforms/__init__.py` の分岐を拡張します
-（共有コードの変更は不要）。キー種別は OS 非依存の論理トークン（`w`/`a`/`up`/`ctrl` …）
-として扱い、各 OS 実装がネイティブのキーコードへ変換します。
+依存します。現在は **Windows** と **macOS** を実装済みです。別 OS（Linux 等）に対応する
+場合は、`src/platforms/base.py` の契約に沿って `src/platforms/<os>/` を追加し、
+`src/platforms/__init__.py` の分岐を拡張します（共有コードの変更は不要）。キー種別は
+OS 非依存の論理トークン（`w`/`a`/`up`/`ctrl` …）として扱い、各 OS 実装がネイティブの
+キーコードへ変換します。
 
 ## 注意
 
