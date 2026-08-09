@@ -51,9 +51,7 @@ def test_corrupt_file_falls_back_to_defaults(tmp_path, monkeypatch):
 
 def test_unknown_keys_are_ignored(tmp_path, monkeypatch):
     settings_file = tmp_path / "settings.json"
-    settings_file.write_text(
-        '{"language": "en", "totally_unknown": 123}', encoding="utf-8"
-    )
+    settings_file.write_text('{"language": "en", "totally_unknown": 123}', encoding="utf-8")
     monkeypatch.setattr(paths, "settings_path", lambda: settings_file)
     monkeypatch.setattr(settings.paths, "settings_path", lambda: settings_file)
 

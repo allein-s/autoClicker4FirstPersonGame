@@ -269,9 +269,7 @@ class AutoClickTab:
 
     def _ensure_not_running(self) -> bool:
         if self._running:
-            messagebox.showwarning(
-                t("dialog.running.title"), t("dialog.running.cannot_edit")
-            )
+            messagebox.showwarning(t("dialog.running.title"), t("dialog.running.cannot_edit"))
             return False
         return True
 
@@ -306,9 +304,7 @@ class AutoClickTab:
             self._refresh_schedule_files()
             messagebox.showinfo(t("dialog.save.success_title"), t("dialog.save.success"))
         except OSError as exc:
-            messagebox.showerror(
-                t("dialog.save.error_title"), t("dialog.save.error", error=exc)
-            )
+            messagebox.showerror(t("dialog.save.error_title"), t("dialog.save.error", error=exc))
 
     def _load_from_combo(self) -> None:
         if not self._ensure_not_running():
@@ -332,9 +328,7 @@ class AutoClickTab:
             self._remember_last_schedule(path)
             messagebox.showinfo(t("dialog.load.title"), t("dialog.load.success"))
         except (OSError, ValueError, json.JSONDecodeError) as exc:
-            messagebox.showerror(
-                t("dialog.load.error_title"), t("dialog.load.error", error=exc)
-            )
+            messagebox.showerror(t("dialog.load.error_title"), t("dialog.load.error", error=exc))
 
     def _remember_last_schedule(self, path: Path) -> None:
         self._settings.last_schedule_path = paths.to_portable_string(path)

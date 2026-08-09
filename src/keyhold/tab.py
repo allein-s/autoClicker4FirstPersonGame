@@ -121,9 +121,9 @@ class KeyHoldTab:
         ).pack(anchor=tk.W, pady=(10, 8))
 
         self.status_var = tk.StringVar()
-        ttk.Label(
-            outer, textvariable=self.status_var, font=("Segoe UI", 10, "bold")
-        ).pack(anchor=tk.W)
+        ttk.Label(outer, textvariable=self.status_var, font=("Segoe UI", 10, "bold")).pack(
+            anchor=tk.W
+        )
 
         ttk.Button(outer, text=t("keyhold.toggle"), command=self.toggle).pack(
             anchor=tk.W, pady=(10, 0)

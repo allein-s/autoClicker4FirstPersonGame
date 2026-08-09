@@ -46,9 +46,9 @@ class AutoClickerApp:
     def _build_ui(self) -> None:
         topbar = ttk.Frame(self.root, padding=(12, 8, 12, 0))
         topbar.pack(fill=tk.X)
-        ttk.Button(
-            topbar, text=t("button.settings"), command=self._open_settings
-        ).pack(side=tk.RIGHT)
+        ttk.Button(topbar, text=t("button.settings"), command=self._open_settings).pack(
+            side=tk.RIGHT
+        )
 
         notebook = ttk.Notebook(self.root)
         notebook.pack(fill=tk.BOTH, expand=True)
@@ -61,9 +61,7 @@ class AutoClickerApp:
 
         keyhold_frame = ttk.Frame(notebook)
         notebook.add(keyhold_frame, text=t("tab.keyhold"))
-        self.keyhold = KeyHoldTab(
-            self.root, keyhold_frame, self._settings, self._on_state_changed
-        )
+        self.keyhold = KeyHoldTab(self.root, keyhold_frame, self._settings, self._on_state_changed)
 
         self.status_var = tk.StringVar()
         ttk.Label(
@@ -163,9 +161,7 @@ class AutoClickerApp:
             self._hold_hotkey is not None and not self._hold_hotkey.registered
         )
         if failed:
-            messagebox.showwarning(
-                t("dialog.hotkey.title"), t("dialog.hotkey.register_failed")
-            )
+            messagebox.showwarning(t("dialog.hotkey.title"), t("dialog.hotkey.register_failed"))
 
     def _start_hotkey_listener(self) -> None:
         self._hotkey = HotkeyService(
@@ -191,8 +187,7 @@ class AutoClickerApp:
         new_settings.hold_keys = old.hold_keys  # owned by the key-hold tab
 
         hotkey_changed = (
-            new_settings.hotkey_vk != old.hotkey_vk
-            or new_settings.hotkey_mods != old.hotkey_mods
+            new_settings.hotkey_vk != old.hotkey_vk or new_settings.hotkey_mods != old.hotkey_mods
         )
         hold_hotkey_changed = (
             new_settings.hold_hotkey_vk != old.hold_hotkey_vk
@@ -218,9 +213,7 @@ class AutoClickerApp:
             self.root.after(300, self._check_hotkey)
 
         if hold_hotkey_changed and self._hold_hotkey is not None:
-            self._hold_hotkey.set_hotkey(
-                new_settings.hold_hotkey_vk, new_settings.hold_hotkey_mods
-            )
+            self._hold_hotkey.set_hotkey(new_settings.hold_hotkey_vk, new_settings.hold_hotkey_mods)
             self.root.after(300, self._check_hotkey)
 
         if repeat_changed:

@@ -179,9 +179,9 @@ class SettingsWindow:
         hold_row.pack(fill=tk.X, pady=(6, 0))
         ttk.Label(hold_row, text=t("settings.behavior.click_hold_ms")).pack(side=tk.LEFT)
         self.hold_ms_var = tk.StringVar(value=str(settings.click_hold_ms))
-        ttk.Spinbox(
-            hold_row, from_=1, to=200, textvariable=self.hold_ms_var, width=6
-        ).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Spinbox(hold_row, from_=1, to=200, textvariable=self.hold_ms_var, width=6).pack(
+            side=tk.LEFT, padx=(8, 0)
+        )
 
         # --- Language ---
         lang_frame = ttk.LabelFrame(self.win, text=t("settings.language.frame"), padding=10)
@@ -209,9 +209,7 @@ class SettingsWindow:
         # --- Buttons ---
         btn_row = ttk.Frame(self.win, padding=(12, 6, 12, 12))
         btn_row.pack(fill=tk.X)
-        ttk.Button(btn_row, text=t("settings.buttons.save"), command=self._save).pack(
-            side=tk.RIGHT
-        )
+        ttk.Button(btn_row, text=t("settings.buttons.save"), command=self._save).pack(side=tk.RIGHT)
         ttk.Button(btn_row, text=t("settings.buttons.cancel"), command=self._cancel).pack(
             side=tk.RIGHT, padx=(0, 8)
         )
@@ -316,7 +314,11 @@ class SettingsWindow:
 
         selected_name = self.language_var.get()
         language = next(
-            (code for code, name in zip(self._lang_codes, self._lang_names) if name == selected_name),
+            (
+                code
+                for code, name in zip(self._lang_codes, self._lang_names)
+                if name == selected_name
+            ),
             i18n.DEFAULT_LANGUAGE,
         )
 

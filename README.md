@@ -67,12 +67,16 @@ pyinstaller --onefile --windowed --uac-admin --name autoClicker --clean main.py
 
 ```powershell
 pip install -r requirements-dev.txt
+black .            # コード整形（Python 版 Prettier 相当。設定は pyproject.toml）
+black --check .    # 整形済みかの確認のみ（CI と同じ）
 pytest
 ```
 
+コードフォーマッタには **Black** を採用しています（行長 100、設定は `pyproject.toml` の `[tool.black]`）。
+
 CI（GitHub Actions, `.github/workflows/ci.yml`）は次のように動作します。
 
-- **push / PR（`main`・`development`）**: 全モジュールのバイトコンパイルと `pytest`
+- **push / PR（`main`・`development`）**: Black による整形チェック（`black --check`）、全モジュールのバイトコンパイル、`pytest`
 - **`main` への PR**: 流入元が `development` かをチェック（それ以外はブロック）
 - **`main` への push（＝マージ）時のみ**: PyInstaller で exe をビルドし、`pyproject.toml` の `version` を用いて `vX.Y.Z` の GitHub Release を自動作成・配布（同一バージョンが既に存在する場合はスキップ）
 
