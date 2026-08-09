@@ -1,6 +1,6 @@
 [project]
 name = "autoclicker"
-version = "1.1.0"
+version = "1.2.0"
 description = "Cross-platform (Windows/macOS) auto-clicker and key-holder: clicks at the cursor position on a looping schedule and holds keys, each toggled by its own global hotkey."
 requires-python = ">=3.12"
 

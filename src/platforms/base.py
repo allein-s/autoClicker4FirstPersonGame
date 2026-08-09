@@ -13,11 +13,15 @@ Notes for non-Windows implementers:
 - ``HotkeyService`` currently takes a numeric key id + modifier bitmask. On
   Windows these are virtual-key codes / RegisterHotKey modifier flags. Other
   platforms may reinterpret them as needed.
+- ``KeyBreakMonitor`` reports physical presses of watched hold tokens so the
+  app can release those keys when the user overrides them. Synthetic presses
+  from ``key_down`` must not be reported (filter injected events, or use
+  ``ignore_injected``).
 """
 
 from __future__ import annotations
 
-from typing import Callable, Protocol
+from typing import Callable, Iterable, Protocol
 
 
 class HotkeyServiceProtocol(Protocol):
@@ -31,6 +35,18 @@ class HotkeyServiceProtocol(Protocol):
 
     @property
     def registered(self) -> bool: ...
+
+
+class KeyBreakMonitorProtocol(Protocol):
+    def __init__(self, on_key: Callable[[str], None]) -> None: ...
+
+    def ignore_injected(self, token: str) -> None: ...
+
+    def set_tokens(self, tokens: Iterable[str]) -> None: ...
+
+    def start(self) -> None: ...
+
+    def stop(self) -> None: ...
 
 
 class PlatformBackend(Protocol):

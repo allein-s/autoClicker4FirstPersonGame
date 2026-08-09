@@ -27,7 +27,7 @@ class KeyHoldTab:
         self._root = root
         self._settings = settings
         self._on_state_changed = on_state_changed
-        self._controller = KeyHoldController()
+        self._controller = KeyHoldController(on_changed=self._on_hold_changed)
         self._key_vars: dict[str, tk.BooleanVar] = {}
         self._build(parent)
 
@@ -44,6 +44,8 @@ class KeyHoldTab:
 
     def set_settings(self, settings: AppSettings) -> None:
         self._settings = settings
+        self.hold_repeat_var.set(settings.hold_repeat)
+        self.hold_interval_var.set(str(settings.hold_repeat_interval_ms))
 
     def start(self, notify_empty: bool = True) -> None:
         keys = resolve_tokens(self._selected_tokens())
@@ -79,6 +81,14 @@ class KeyHoldTab:
     def shutdown(self) -> None:
         self._controller.stop()
 
+    def _on_hold_changed(self) -> None:
+        # KeyBreakMonitor callbacks may arrive off the Tk thread.
+        self._root.after(0, self._apply_hold_changed)
+
+    def _apply_hold_changed(self) -> None:
+        self._refresh_status()
+        self._on_state_changed()
+
     # ------------------------------------------------------------------
     # UI construction
     # ------------------------------------------------------------------
@@ -111,6 +121,29 @@ class KeyHoldTab:
                 padx=6,
                 pady=4,
             )
+
+        self.hold_repeat_var = tk.BooleanVar(value=self._settings.hold_repeat)
+        ttk.Checkbutton(
+            outer,
+            text=t("keyhold.repeat"),
+            variable=self.hold_repeat_var,
+            command=self._on_repeat_toggled,
+        ).pack(anchor=tk.W, pady=(12, 0))
+
+        repeat_row = ttk.Frame(outer)
+        repeat_row.pack(fill=tk.X, pady=(4, 0))
+        ttk.Label(repeat_row, text=t("keyhold.repeat_interval")).pack(side=tk.LEFT)
+        self.hold_interval_var = tk.StringVar(value=str(self._settings.hold_repeat_interval_ms))
+        interval_spin = ttk.Spinbox(
+            repeat_row,
+            from_=1,
+            to=1000,
+            textvariable=self.hold_interval_var,
+            width=6,
+        )
+        interval_spin.pack(side=tk.LEFT, padx=(8, 0))
+        interval_spin.bind("<FocusOut>", self._on_interval_commit)
+        interval_spin.bind("<Return>", self._on_interval_commit)
 
         ttk.Label(
             outer,
@@ -147,6 +180,28 @@ class KeyHoldTab:
         # Re-apply immediately if currently holding so changes take effect.
         self.restart_if_active()
         self._refresh_status()
+
+    def _on_repeat_toggled(self) -> None:
+        self._settings.hold_repeat = self.hold_repeat_var.get()
+        save_settings(self._settings)
+        self.restart_if_active()
+
+    def _on_interval_commit(self, _event: object | None = None) -> None:
+        try:
+            interval = int(self.hold_interval_var.get())
+            if interval < 1:
+                raise ValueError
+        except ValueError:
+            messagebox.showwarning(
+                t("keyhold.repeat_error_title"), t("keyhold.repeat_interval_error")
+            )
+            self.hold_interval_var.set(str(self._settings.hold_repeat_interval_ms))
+            return
+        if interval == self._settings.hold_repeat_interval_ms:
+            return
+        self._settings.hold_repeat_interval_ms = interval
+        save_settings(self._settings)
+        self.restart_if_active()
 
     def _refresh_status(self) -> None:
         if self._controller.active:
