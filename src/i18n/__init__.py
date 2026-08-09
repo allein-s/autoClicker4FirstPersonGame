@@ -1,7 +1,7 @@
 """Minimal i18n: string lookup by key with .format() style substitution.
 
 Usage:
-    from autoclicker.i18n import t, set_language
+    from src.i18n import t, set_language
 
     set_language("en")
     label = t("button.click")
