@@ -18,6 +18,10 @@ from .platforms import HotkeyService
 
 
 class AutoClickerApp:
+    # Minimum size for the notebook area once the footer has claimed its space.
+    _MIN_CONTENT_WIDTH = 520
+    _MIN_CONTENT_HEIGHT = 240
+
     def __init__(self) -> None:
         self._settings: AppSettings = load_settings()
         i18n.set_language(self._settings.language)
@@ -27,7 +31,6 @@ class AutoClickerApp:
 
         self.root = tk.Tk()
         self.root.title(t("app.title"))
-        self.root.minsize(620, 420)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
         if self._settings.main_window_topmost:
             self.root.attributes("-topmost", True)
@@ -44,8 +47,14 @@ class AutoClickerApp:
     # UI construction
     # ------------------------------------------------------------------
     def _build_ui(self) -> None:
+        # Grid keeps the footer row at its natural height while the notebook
+        # absorbs all shrinking; pack(expand) alone can push the footer off-screen.
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+        self.root.rowconfigure(1, weight=0)
+
         notebook = ttk.Notebook(self.root)
-        notebook.pack(fill=tk.BOTH, expand=True)
+        notebook.grid(row=0, column=0, sticky="nsew")
 
         autoclick_frame = ttk.Frame(notebook)
         notebook.add(autoclick_frame, text=t("tab.autoclick"))
@@ -57,8 +66,10 @@ class AutoClickerApp:
         notebook.add(keyhold_frame, text=t("tab.keyhold"))
         self.keyhold = KeyHoldTab(self.root, keyhold_frame, self._settings, self._on_state_changed)
 
-        # フッター: 左にステータス、右に設定ボタン（タブの下に配置）。
-        status_row = ttk.Frame(self.root, padding=(12, 6, 12, 0))
+        footer = ttk.Frame(self.root)
+        footer.grid(row=1, column=0, sticky="ew")
+
+        status_row = ttk.Frame(footer, padding=(12, 6, 12, 0))
         status_row.pack(fill=tk.X)
         ttk.Button(status_row, text=t("button.settings"), command=self._open_settings).pack(
             side=tk.RIGHT
@@ -70,12 +81,17 @@ class AutoClickerApp:
 
         self.hint_var = tk.StringVar()
         ttk.Label(
-            self.root,
+            footer,
             textvariable=self.hint_var,
             padding=(12, 0, 12, 8),
             foreground="#555",
         ).pack(fill=tk.X)
         self._refresh_hint()
+
+        self.root.update_idletasks()
+        min_w = self._MIN_CONTENT_WIDTH
+        min_h = footer.winfo_reqheight() + self._MIN_CONTENT_HEIGHT
+        self.root.minsize(min_w, min_h)
 
     # ------------------------------------------------------------------
     # Shared status / overlay
