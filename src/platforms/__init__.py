@@ -16,11 +16,13 @@ import sys
 if sys.platform == "win32":
     from .windows.hotkey import HotkeyService
     from .windows.inputs import game_left_click, key_down, key_up
+    from .windows.keybreak import KeyBreakMonitor
     from .windows.startup import is_registered, set_registered
     from .windows.window import work_area
 elif sys.platform == "darwin":
     from .macos.hotkey import HotkeyService
     from .macos.inputs import game_left_click, key_down, key_up
+    from .macos.keybreak import KeyBreakMonitor
     from .macos.startup import is_registered, set_registered
     from .macos.window import work_area
 else:  # pragma: no cover - implemented on a dedicated per-OS branch
@@ -32,6 +34,7 @@ else:  # pragma: no cover - implemented on a dedicated per-OS branch
 
 __all__ = [
     "HotkeyService",
+    "KeyBreakMonitor",
     "game_left_click",
     "key_down",
     "key_up",

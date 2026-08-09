@@ -27,7 +27,7 @@ STRINGS: dict[str, str] = {
     # --- Key-hold tab ---
     "keyhold.keys_frame": "押しっぱなしにするキー",
     "keyhold.hint": "{hotkey}: 押しっぱなし 開始 / 停止  |  オートクリックと併用できます",
-    "keyhold.note": "キーの選択は即時反映されます。連打対応の再送は設定画面で切り替えできます。",
+    "keyhold.note": "キーの選択は即時反映されます。押しっぱなし中にそのキーを押すと、そのキーだけ解除されます。連打対応の再送は設定画面で切り替えできます。",
     "keyhold.toggle": "開始 / 停止",
     "keyhold.status_active": "押しっぱなし中: {keys}",
     "keyhold.status_idle": "停止中",
