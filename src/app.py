@@ -11,7 +11,7 @@ from .autoclick.tab import AutoClickTab
 from .common.overlay import RunningOverlay
 from .common.settings import AppSettings, load_settings, save_settings
 from .common.settings_window import SettingsWindow
-from .common.vk_map import hotkey_label
+from .common.vk_map import hotkey_label, modifiers_for_hold_tokens
 from .i18n import t
 from .keyhold.tab import KeyHoldTab
 from .platforms import HotkeyService
@@ -121,6 +121,14 @@ class AutoClickerApp:
     def _on_state_changed(self) -> None:
         self._refresh_status()
         self._update_overlay()
+        self._sync_hotkey_extra_modifiers()
+
+    def _sync_hotkey_extra_modifiers(self) -> None:
+        # Held Ctrl/Alt would otherwise turn F3 into Ctrl+F3 and break both hotkeys.
+        extra = modifiers_for_hold_tokens(self.keyhold.held_tokens)
+        for service in (self._hotkey, self._hold_hotkey):
+            if service is not None:
+                service.set_extra_modifiers(extra)
 
     def _update_overlay(self) -> None:
         if not self._settings.show_overlay:

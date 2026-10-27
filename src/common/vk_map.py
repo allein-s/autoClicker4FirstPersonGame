@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Iterable
+
 VK_F1 = 0x70
 DEFAULT_HOTKEY_VK = VK_F1 + 7  # F8
 DEFAULT_HOLD_HOTKEY_VK = VK_F1 + 8  # F9
@@ -70,6 +72,32 @@ MOD_ALT = 0x0001
 MOD_CONTROL = 0x0002
 MOD_SHIFT = 0x0004
 MOD_WIN = 0x0008
+
+# Key-hold tokens that the OS treats as hotkey modifiers while they are held down.
+_HOLD_TOKEN_MODS: dict[str, int] = {"ctrl": MOD_CONTROL, "alt": MOD_ALT}
+
+
+def modifiers_for_hold_tokens(tokens: Iterable[str]) -> int:
+    mask = 0
+    for token in tokens:
+        mask |= _HOLD_TOKEN_MODS.get(token, 0)
+    return mask
+
+
+def hotkey_modifier_variants(mods: int, extra: int) -> list[int]:
+    """Extra modifier sets to register so a hotkey still fires while ``extra`` is held.
+
+    RegisterHotKey only matches the exact modifier state, so holding Ctrl turns F3
+    into Ctrl+F3. Returns every ``mods | subset`` for non-empty subsets of the
+    modifiers in ``extra`` that are not already part of ``mods``.
+    """
+    extra &= ~mods
+    variants: list[int] = []
+    subset = extra
+    while subset:
+        variants.append(mods | subset)
+        subset = (subset - 1) & extra
+    return sorted(variants)
 
 
 def vk_from_keysym(keysym: str) -> int | None:

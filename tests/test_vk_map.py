@@ -28,3 +28,22 @@ def test_unsupported_keysym_returns_none():
 def test_hotkey_label_with_modifiers():
     label = vk_map.hotkey_label(vk_map.DEFAULT_HOTKEY_VK, vk_map.MOD_CONTROL | vk_map.MOD_SHIFT)
     assert label == "Ctrl+Shift+F8"
+
+
+def test_modifiers_for_hold_tokens():
+    assert vk_map.modifiers_for_hold_tokens(["w", "space"]) == 0
+    assert vk_map.modifiers_for_hold_tokens(["ctrl"]) == vk_map.MOD_CONTROL
+    assert (
+        vk_map.modifiers_for_hold_tokens(["alt", "w", "ctrl"])
+        == vk_map.MOD_CONTROL | vk_map.MOD_ALT
+    )
+
+
+def test_hotkey_modifier_variants():
+    ctrl, alt, shift = vk_map.MOD_CONTROL, vk_map.MOD_ALT, vk_map.MOD_SHIFT
+    assert vk_map.hotkey_modifier_variants(0, 0) == []
+    assert vk_map.hotkey_modifier_variants(0, ctrl) == [ctrl]
+    assert vk_map.hotkey_modifier_variants(0, ctrl | alt) == sorted([ctrl, alt, ctrl | alt])
+    # Modifiers already in the hotkey are not duplicated.
+    assert vk_map.hotkey_modifier_variants(ctrl, ctrl) == []
+    assert vk_map.hotkey_modifier_variants(shift, ctrl) == [shift | ctrl]
