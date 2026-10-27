@@ -33,6 +33,10 @@ class HotkeyServiceProtocol(Protocol):
 
     def set_hotkey(self, vk: int, mods: int) -> None: ...
 
+    def set_extra_modifiers(self, mods: int) -> None:
+        """Keep the hotkey working while these modifiers are held by key-hold."""
+        ...
+
     @property
     def registered(self) -> bool: ...
 
