@@ -91,6 +91,10 @@ class HotkeyService:
         self.stop()
         self._register()
 
+    def set_extra_modifiers(self, mods: int) -> None:
+        """No-op: pynput's HotKey ignores pressed keys outside the combination."""
+        del mods
+
     @property
     def registered(self) -> bool:
         return self._registered

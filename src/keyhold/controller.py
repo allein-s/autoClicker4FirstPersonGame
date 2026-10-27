@@ -72,6 +72,10 @@ class KeyHoldController:
     def held_labels(self) -> list[str]:
         return [k.label for k in self._held]
 
+    @property
+    def held_tokens(self) -> list[str]:
+        return [k.token for k in self._held]
+
     def start(self, keys: list[KeyDef], repeat: bool, interval_ms: int) -> bool:
         with self._lock:
             if self._active or not keys:

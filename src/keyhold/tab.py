@@ -42,6 +42,10 @@ class KeyHoldTab:
     def held_labels(self) -> list[str]:
         return self._controller.held_labels
 
+    @property
+    def held_tokens(self) -> list[str]:
+        return self._controller.held_tokens
+
     def set_settings(self, settings: AppSettings) -> None:
         self._settings = settings
         self.hold_repeat_var.set(settings.hold_repeat)
